@@ -5,18 +5,23 @@ on:
     branches: [ main ]
 
 jobs:
-  build-and-deploy:
+  deploy:
     runs-on: ubuntu-latest
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Build Docker image
-      run: |
-        docker build -t passout:latest .
+    - name: Copy files to server
+      uses: appleboy/scp-action@v0.1.3
+      with:
+        host: ${{ secrets.SERVER_HOST }}
+        username: ${{ secrets.SERVER_USER }}
+        key: ${{ secrets.SERVER_SSH_KEY }}
+        source: "."
+        target: "/app/passOut2025"
 
-    - name: Deploy to Server
+    - name: Deploy on server
       uses: appleboy/ssh-action@v0.1.10
       with:
         host: ${{ secrets.SERVER_HOST }}
@@ -24,27 +29,21 @@ jobs:
         key: ${{ secrets.SERVER_SSH_KEY }}
         script: |
           cd /app/passOut2025
-
-          # Pull последней версии образа (опционально)
-          docker pull passout:latest || true
-
+          
+          # Собираем образ на сервере
+          docker build -t passout:latest .
+          
           # Останавливаем и удаляем старый контейнер
           docker stop passout-app || true
           docker rm passout-app || true
-
-          # Запускаем новый контейнер с переменными окружения
+          
+          # Запускаем новый контейнер
           docker run -d \
             --name passout-app \
-            --restart unless-stopped \  # Автоперезапуск при падении
+            --restart unless-stopped \
             -p 127.0.0.1:4000:4000 \
-            -e TZ=Europe/Moscow \       # Установка часового пояса
+            -e TZ=Europe/Moscow \
             passout:latest
-
-          # Ждем немного перед перезагрузкой nginx
-          sleep 5
-
-          # Проверяем конфиг и перезагружаем nginx
-          sudo nginx -t && sudo nginx -s reload
-
-          # Очищаем старые образы чтобы не засорять диск
+          
+          # Очищаем старые образы
           docker image prune -f
