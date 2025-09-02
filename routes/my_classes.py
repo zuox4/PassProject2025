@@ -1,5 +1,5 @@
-import datetime
 
+import datetime
 from fastapi import APIRouter, HTTPException
 
 import find_user
@@ -16,6 +16,7 @@ from models.classes import ClassPermission
 from schemas.classes import AddPermission
 from models.classes import ClassPermission
 from models.apcents import ApcentModel
+from sqlalchemy import cast, Date
 router = APIRouter(
     prefix="/api/classes",
     tags=['ClassesDashboard']
@@ -24,17 +25,29 @@ router = APIRouter(
 
 @router.get('/myClasses')
 def get_my_classes(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+
+
     user_email = user.email
     my_classes = find_user.find_user(user_email).get('classes')
     permission_classes = db.query(ClassPermission).filter(ClassPermission.class_menagers_email == user_email).all()
-
+    today = datetime.datetime.now().date()
+    today_start = datetime.datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    today_end = today_start + datetime.timedelta(days=1)
     data1 = []
 
     for name in my_classes:
         permission = db.query(ClassPermission).filter(
             ClassPermission.class_name == name
         ).first()
-        apcents = [i.student_name for i in db.query(ApcentModel).filter(ApcentModel.class_name == name).all()] # пошлучил отсутствующих в классе
+        apcents = [
+            i.student_name
+            for i in db.query(ApcentModel)
+            .filter(ApcentModel.datetime >= today_start)
+            .filter(ApcentModel.datetime < today_end)
+            .filter(ApcentModel.class_name == name)
+            .all()
+        ]
+
         data1.append({
             'name': name,
             'permission_teacher': permission.class_menagers_email if permission else '',
@@ -43,7 +56,8 @@ def get_my_classes(db: Session = Depends(get_db), user: User = Depends(get_curre
         })
     print(data1)
     if permission_classes:
-        data2 = [{'name': i.class_name, 'students': studentsDB.get_class_from_db(class_name=i.class_name)} for i in permission_classes]
+        data2 = [{'name': i.class_name, 'students': studentsDB.get_class_from_db(class_name=i.class_name), 'apcents': [i.student_name for i in db.query(ApcentModel).filter(ApcentModel.class_name==i.class_name).filter(ApcentModel.datetime >= today_start)
+            .filter(ApcentModel.datetime < today_end).all()] } for i in permission_classes]
     else:
         data2 = []
     data = {

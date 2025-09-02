@@ -11,6 +11,7 @@ from database import get_db
 from models.event import Event, Eventer
 from schemas.history_outs import Apcent
 from models.apcents import ApcentModel
+from schemas.history_outs import DeleteApcentRequest
 router = APIRouter(
     prefix="/api/apcents",
     tags=["Apcents"]
@@ -32,3 +33,13 @@ def create_apcent(data: Apcent, db: Session = Depends(get_db), user: User = Depe
     db.commit()
     db.refresh(newApcent)
     return {'id': newApcent.id, 'name': newApcent.student_name, 'email': newApcent.teacher_email, 'datetime': newApcent.datetime, 'class_name': newApcent.class_name, 'cause': newApcent.cause}
+
+
+@router.delete('/deleteapcent')
+def delete_apcents(data: DeleteApcentRequest,db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    apcent = db.query(ApcentModel).filter(ApcentModel.student_name == data.name, ApcentModel.class_name==data.className).first()
+    db.delete(apcent)
+    db.commit()
+
+    print(data)
+    return {'id': data}

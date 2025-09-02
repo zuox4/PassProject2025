@@ -1,3 +1,5 @@
+import time
+
 from fastapi import APIRouter
 from utils import verify_google_token, create_jwt_token, get_current_user
 from schemas.token import TokenData
@@ -18,6 +20,7 @@ router = APIRouter(
 async def auth_google(token_data: TokenData):
     user_info = await verify_google_token(token_data.token)
     print(user_info)
+    time.sleep((2))
     # Добавляем срок действия (например, 30 дней)
     expires_delta = timedelta(days=30)
     expire = datetime.utcnow() + expires_delta
