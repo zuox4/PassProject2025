@@ -31,7 +31,7 @@ jobs:
           cd /app/passOut2025
           
           # Собираем образ на сервере
-          docker build -t passout:latest .
+          docker build --network=host -t passout:latest .
           
           # Останавливаем и удаляем старый контейнер
           docker stop passout-app || true
